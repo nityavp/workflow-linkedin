@@ -74,9 +74,10 @@ if st.button("Analyze Company LinkedIn Page"):
             if jina_result:
                 st.write("Jina Analysis Results:")
                 st.text(jina_result)
+                jina_result_openai="This is my competitor's LinkedIn profile content, tell me in bullet points after analyzing what all can I learn " + jina_result
                 
                 # Process Jina results with OpenAI
-                openai_result = process_with_openai(jina_result, openai_api_key)
+                openai_result = process_with_openai( jina_result_openai, openai_api_key)
                 if openai_result:
                     st.write("OpenAI Processed Results:")
                     st.text(openai_result)
