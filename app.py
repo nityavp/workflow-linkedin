@@ -1,6 +1,7 @@
 import streamlit as st
 import requests
 import json
+import re
 
 # Function to make search request to Serper API
 def serper_search(query, api_key):
@@ -26,10 +27,27 @@ def analyze_with_jina(url):
     }
     response = requests.get(api_url, headers=headers)
     if response.status_code == 200:
-        return response.json()
+        jina_results = response.json()
+        
+        # Remove links from Jina results
+        cleaned_results = remove_links_from_jina_response(jina_results)
+        
+        return cleaned_results
     else:
         st.error(f"Jina Error: HTTP {response.status_code}")
         return None
+
+# Function to remove links from Jina AI response
+def remove_links_from_jina_response(jina_results):
+    # Regular expression to identify links in text
+    link_pattern = r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+'
+    
+    # Remove links from each document in Jina results
+    for doc in jina_results['data']['docs']:
+        if 'text' in doc:
+            doc['text'] = re.sub(link_pattern, '', doc['text'])
+    
+    return jina_results
 
 # Function to process text with OpenAI
 def process_with_openai(text, openai_api_key):
@@ -77,7 +95,8 @@ if st.button("Analyze Company LinkedIn Page"):
                 st.json(jina_result)  # Display Jina results as JSON
                 
                 # Process Jina results with OpenAI
-                openai_result = process_with_openai(json.dumps(jina_result), openai_api_key)
+                jina_text = extract_text_from_jina_results(jina_result)
+                openai_result = process_with_openai(jina_text, openai_api_key)
                 if openai_result:
                     st.write("OpenAI Processed Results:")
                     st.text(openai_result)
@@ -85,4 +104,13 @@ if st.button("Analyze Company LinkedIn Page"):
             st.error("No results found or failed to fetch results.")
     else:
         st.error("Please provide the company name, Serper API key, and OpenAI API key.")
+
+# Function to extract text from Jina results
+def extract_text_from_jina_results(jina_results):
+    text = ""
+    for doc in jina_results['data']['docs']:
+        if 'text' in doc:
+            text += doc['text'] + "\n"
+    return text.strip()
+
 
