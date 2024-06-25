@@ -37,17 +37,27 @@ def analyze_with_jina(url):
         st.error(f"Jina Error: HTTP {response.status_code}")
         return None
 
-# Function to remove links from Jina AI response
+# Function to remove links from content fields in Jina AI response
 def remove_links_from_jina_response(jina_results):
-    # Regular expression to identify links in text
-    link_pattern = r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+'
-    
-    # Remove links from each document in Jina results
-    for doc in jina_results['data']['docs']:
-        if 'text' in doc:
-            doc['text'] = re.sub(link_pattern, '', doc['text'])
-    
-    return jina_results
+    try:
+        # Regular expression to identify links in text
+        link_pattern = r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+'
+        
+        # Check if 'data' key exists in the response
+        if 'data' in jina_results:
+            # Iterate through 'data' fields to remove links
+            for key, value in jina_results['data'].items():
+                if isinstance(value, str):
+                    # Remove links from string fields
+                    jina_results['data'][key] = re.sub(link_pattern, '', value)
+                elif isinstance(value, list):
+                    # Remove links from list of strings
+                    jina_results['data'][key] = [re.sub(link_pattern, '', item) if isinstance(item, str) else item for item in value]
+        
+        return jina_results
+    except KeyError as e:
+        st.error(f"KeyError: {e}")
+        return None
 
 # Function to process text with OpenAI
 def process_with_openai(text, openai_api_key):
@@ -95,11 +105,14 @@ if st.button("Analyze Company LinkedIn Page"):
                 st.json(jina_result)  # Display Jina results as JSON
                 
                 # Process Jina results with OpenAI
-                jina_text = extract_text_from_jina_results(jina_result)
-                openai_result = process_with_openai(jina_text, openai_api_key)
-                if openai_result:
-                    st.write("OpenAI Processed Results:")
-                    st.text(openai_result)
+                if 'data' in jina_result:
+                    jina_text = extract_text_from_jina_results(jina_result)
+                    openai_result = process_with_openai(jina_text, openai_api_key)
+                    if openai_result:
+                        st.write("OpenAI Processed Results:")
+                        st.text(openai_result)
+                else:
+                    st.error("No 'data' found in Jina results.")
         else:
             st.error("No results found or failed to fetch results.")
     else:
@@ -108,9 +121,15 @@ if st.button("Analyze Company LinkedIn Page"):
 # Function to extract text from Jina results
 def extract_text_from_jina_results(jina_results):
     text = ""
-    for doc in jina_results['data']['docs']:
-        if 'text' in doc:
-            text += doc['text'] + "\n"
+    try:
+        if 'data' in jina_results:
+            for key, value in jina_results['data'].items():
+                if isinstance(value, str):
+                    text += value + "\n"
+                elif isinstance(value, list):
+                    text += ' '.join(value) + "\n"
+    except KeyError as e:
+        st.error(f"KeyError: {e}")
     return text.strip()
 
 
