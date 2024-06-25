@@ -1,6 +1,7 @@
 import streamlit as st
 import requests
 import json
+import re
 
 # Function to make search request to Serper API
 def serper_search(query, api_key):
@@ -14,7 +15,7 @@ def serper_search(query, api_key):
     if response.status_code == 200:
         return response.json()
     else:
-        st.error(f"Error: {response.status_code}")
+        st.error(f"Error from Serper API: {response.status_code}")
         return None
 
 # Function to analyze a URL with Jina
@@ -29,6 +30,13 @@ def analyze_with_jina(url):
     else:
         st.error(f"Jina Error: HTTP {response.status_code}")
         return None
+
+# Function to preprocess text: remove all after a certain line
+def trim_text_at_marker(text, marker="Join now to see what you are missing"):
+    index = text.find(marker)
+    if index != -1:
+        return text[:index]  # Return text before the marker
+    return text  # Return original text if the marker is not found
 
 # Function to process text with OpenAI
 def process_with_openai(text, openai_api_key):
@@ -72,18 +80,23 @@ if st.button("Analyze Company LinkedIn Page"):
             # Analyze the URL with Jina
             jina_result = analyze_with_jina(first_url)
             if jina_result:
-                st.write("Jina Analysis Results:")
-                st.text(jina_result)
+                # Preprocess to remove text after a specific line
+                preprocessed_text = trim_text_at_marker(jina_result)
                 
-                # Process Jina results with OpenAI
-                openai_result = process_with_openai(jina_result, openai_api_key)
+                # Process preprocessed text with OpenAI
+                openai_result = process_with_openai(preprocessed_text, openai_api_key)
                 if openai_result:
                     st.write("OpenAI Processed Results:")
                     st.text(openai_result)
+                else:
+                    st.write("Failed to process text with OpenAI due to API error.")
+            else:
+                st.write("Failed to get a valid response from Jina.")
         else:
-            st.error("No results found or failed to fetch results.")
+            st.error("No results found or failed to fetch results from Serper.")
     else:
         st.error("Please provide the company name, Serper API key, and OpenAI API key.")
+
 
 
 
