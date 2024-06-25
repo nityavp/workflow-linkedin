@@ -30,15 +30,37 @@ def analyze_with_jina(url):
         st.error(f"Jina Error: HTTP {response.status_code}")
         return None
 
+# Function to process text with OpenAI
+def process_with_openai(text, openai_api_key):
+    url = "https://api.openai.com/v1/chat/completions"
+    headers = {
+        'Content-Type': 'application/json',
+        'Authorization': f'Bearer {openai_api_key}'
+    }
+    data = {
+        "model": "gpt-3.5-turbo",
+        "messages": [
+            {"role": "system", "content": "Analyze the following content:"},
+            {"role": "user", "content": text}
+        ]
+    }
+    response = requests.post(url, headers=headers, json=data)
+    if response.status_code == 200:
+        return response.json()['choices'][0]['message']['content']
+    else:
+        st.error(f"OpenAI Error: HTTP {response.status_code}")
+        return None
+
 # Streamlit app setup
-st.title("Company LinkedIn Page Analyzer")
+st.title("Advanced Company Analysis with LinkedIn, Jina, and OpenAI")
 
 # User inputs
 company_name = st.text_input("Enter the company name")
 serper_api_key = st.text_input("Enter your Serper API key", type="password")
+openai_api_key = st.text_input("Enter your OpenAI API key", type="password")
 
 if st.button("Analyze Company LinkedIn Page"):
-    if company_name and serper_api_key:
+    if company_name and serper_api_key and openai_api_key:
         # Perform search on LinkedIn via Serper API
         linkedin_query = f"LinkedIn {company_name}"
         search_results = serper_search(linkedin_query, serper_api_key)
@@ -50,10 +72,16 @@ if st.button("Analyze Company LinkedIn Page"):
             # Analyze the URL with Jina
             jina_result = analyze_with_jina(first_url)
             if jina_result:
-                # Display Jina analysis results
                 st.write("Jina Analysis Results:")
                 st.text(jina_result)
+                
+                # Process Jina results with OpenAI
+                openai_result = process_with_openai(jina_result, openai_api_key)
+                if openai_result:
+                    st.write("OpenAI Processed Results:")
+                    st.text(openai_result)
         else:
             st.error("No results found or failed to fetch results.")
     else:
-        st.error("Please provide the company name and Serper API key.")
+        st.error("Please provide the company name, Serper API key, and OpenAI API key.")
+
