@@ -55,16 +55,24 @@ def process_with_openai(text, openai_api_key):
         'Content-Type': 'application/json',
         'Authorization': f'Bearer {openai_api_key}'
     }
+    
+    # Check if the total tokens exceed the model's context length
+    max_context_length = 16385
+    total_tokens = sum(len(message['content'].split()) for message in text['messages'])
+    if total_tokens > max_context_length:
+        st.error(f"Total tokens ({total_tokens}) exceed model's maximum context length ({max_context_length})")
+        return None
+    
     data = {
         "model": "gpt-3.5-turbo",
-        "messages": [
-            {"role": "system", "content": "Analyze the following content:"},
-            {"role": "user", "content": text}
-        ]
+        "messages": text['messages']
     }
     response = requests.post(url, headers=headers, json=data)
     if response.status_code == 200:
         return response.json()['choices'][0]['message']['content']
+    elif response.status_code == 400 and 'context_length_exceeded' in response.json().get('error', {}).get('code', ''):
+        st.error("Context length exceeded. Please reduce the length of messages.")
+        return None
     else:
         st.error(f"OpenAI Error: HTTP {response.status_code}")
         st.error(f"OpenAI Error Response: {response.text}")
@@ -95,11 +103,13 @@ if st.button("Analyze Company LinkedIn Page"):
                 preprocessed_text = trim_text_at_marker(jina_result)
                 
                 # Construct text input for OpenAI
-                result_input = (
-                    "This is my competitor's LinkedIn profile content. "
-                    "Tell me, in bullet points after analyzing, what all can I learn from it:\n\n"
-                    f"{preprocessed_text}"
-                )
+                result_input = {
+                    "model": "gpt-3.5-turbo",
+                    "messages": [
+                        {"role": "system", "content": "Analyze the following content:"},
+                        {"role": "user", "content": preprocessed_text}
+                    ]
+                }
 
                 # Process preprocessed text with OpenAI
                 openai_result = process_with_openai(result_input, openai_api_key)
@@ -114,6 +124,7 @@ if st.button("Analyze Company LinkedIn Page"):
             st.error("No results found or failed to fetch results from Serper.")
     else:
         st.error("Please provide the company name, Serper API key, and OpenAI API key.")
+
 
 
 
