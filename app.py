@@ -20,10 +20,7 @@ def serper_search(query, api_key):
 # Function to analyze a URL with Jina
 def analyze_with_jina(url):
     api_url = f"https://r.jina.ai/{url}"
-    headers = {
-        "X-With-Links-Summary": "true"
-    }
-    response = requests.get(api_url, headers=headers)
+    response = requests.get(api_url)
     if response.status_code == 200:
         return response.text  # Return raw text from the response
     else:
