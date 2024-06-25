@@ -1,6 +1,7 @@
 import streamlit as st
 import requests
 import json
+import re
 
 # Function to make search request to Serper API
 def serper_search(query, api_key):
@@ -30,58 +31,33 @@ def analyze_with_jina(url):
         st.error(f"Jina Error: HTTP {response.status_code}")
         return None
 
-# Function to preprocess text: remove all after the second occurrence of "*" after "updates"
-def trim_text_at_marker(text):
+# Function to preprocess text: remove all after a certain line
+def trim_text_at_marker(text, marker="*   some text *"):
     lines = text.splitlines()
-    count_updates = 0
-    count_marker = 0
     for i, line in enumerate(lines):
-        if "updates" in line:
-            count_updates += 1
-            if count_updates == 2:
-                for j, char in enumerate(line):
-                    if char == "*":
-                        count_marker += 1
-                        if count_marker == 2:
-                            return "\n".join(lines[:i+1])  # Return text including the second marker line and everything before
-                        else:
-                            continue
+        if marker in line:
+            return "\n".join(lines[:i+1])  # Return text including the marker line and everything before
     return text
 
-# Function to process text with OpenAI, reducing input length
-def process_with_openai(preprocessed_text, openai_api_key):
+# Function to process text with OpenAI
+def process_with_openai(text, openai_api_key):
     url = "https://api.openai.com/v1/chat/completions"
     headers = {
         'Content-Type': 'application/json',
         'Authorization': f'Bearer {openai_api_key}'
     }
-    
-    # Check the length of preprocessed_text and truncate if necessary
-    max_context_length = 16385
-    total_tokens = len(preprocessed_text.split())
-    if total_tokens > max_context_length:
-        st.warning(f"Total tokens ({total_tokens}) exceed model's maximum context length ({max_context_length}). Truncating text.")
-        
-        # Example: Truncate text to fit within 16,000 tokens
-        preprocessed_text = ' '.join(preprocessed_text.split()[:16000])
-    
-    # Construct text input for OpenAI
-    result_input = {
+    data = {
         "model": "gpt-3.5-turbo",
         "messages": [
             {"role": "system", "content": "Analyze the following content:"},
-            {"role": "user", "content": preprocessed_text}
+            {"role": "user", "content": text}
         ]
     }
-    
-    # Send the modified text input to OpenAI
-    response = requests.post(url, headers=headers, json=result_input)
+    response = requests.post(url, headers=headers, json=data)
     if response.status_code == 200:
-        openai_result = response.json()['choices'][0]['message']['content']
-        return openai_result
+        return response.json()['choices'][0]['message']['content']
     else:
         st.error(f"OpenAI Error: HTTP {response.status_code}")
-        st.error(f"OpenAI Error Response: {response.text}")
         return None
 
 # Streamlit app setup
@@ -105,11 +81,13 @@ if st.button("Analyze Company LinkedIn Page"):
             # Analyze the URL with Jina
             jina_result = analyze_with_jina(first_url)
             if jina_result:
-                # Preprocess to remove text after the second occurrence of "*" after "updates"
+                # Preprocess to remove text after a specific line
                 preprocessed_text = trim_text_at_marker(jina_result)
-                
-                # Process preprocessed text with OpenAI, reducing input length if needed
-                openai_result = process_with_openai(preprocessed_text, openai_api_key)
+                result_input ="This is my competitor's LinkedIn profile content, tell me in bullet points after analyzing what all can I learn from it"+ preprocessed_text
+                st.write( result_input)
+                final_result_input=result_input[:16000]
+                # Process preprocessed text with OpenAI
+                openai_result = process_with_openai(result_input, openai_api_key)
                 if openai_result:
                     st.write("OpenAI Processed Results:")
                     st.text(openai_result)
