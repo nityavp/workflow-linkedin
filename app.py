@@ -57,7 +57,7 @@ def process_with_openai(text, openai_api_key):
     if response.status_code == 200:
         return response.json()['choices'][0]['message']['content']
     else:
-        st.error(f"OpenAI Error: HTTP {response.status_code}")
+        st.error(f"OpenAI Error: HTTP {response.json()}")
         return None
 
 # Streamlit app setup
@@ -87,7 +87,7 @@ if st.button("Analyze Company LinkedIn Page"):
                 st.write( result_input)
                 final_result_input=result_input[:16000]
                 # Process preprocessed text with OpenAI
-                openai_result = process_with_openai(result_input, openai_api_key)
+                openai_result = process_with_openai(final_result_input, openai_api_key)
                 if openai_result:
                     st.write("OpenAI Processed Results:")
                     st.text(openai_result)
