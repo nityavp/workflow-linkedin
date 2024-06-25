@@ -22,7 +22,7 @@ def serper_search(query, api_key):
 def analyze_with_jina(url):
     api_url = f"https://r.jina.ai/{url}"
     headers = {
-        "X-With-Links-Summary": "true"
+        "Accept": "application/json"
     }
     response = requests.get(api_url, headers=headers)
     if response.status_code == 200:
