@@ -56,31 +56,14 @@ def process_with_openai(text, openai_api_key):
         'Authorization': f'Bearer {openai_api_key}'
     }
     
-    # Reduce input length by summarizing or trimming text
-    max_context_length = 16385
-    total_tokens = sum(len(message['content'].split()) for message in text['messages'])
-    if total_tokens > max_context_length:
-        st.warning(f"Total tokens ({total_tokens}) exceed model's maximum context length ({max_context_length}). Reducing input length.")
-        
-        # Example: Truncate text to first 16,000 tokens
-        truncated_text = ' '.join(text['messages'][1]['content'].split()[:16000])
-        
-        data = {
-            "model": "gpt-3.5-turbo",
-            "messages": [
-                {"role": "system", "content": "Analyze the following content:"},
-                {"role": "user", "content": truncated_text}
-            ]
-        }
-    else:
-        data = {
-            "model": "gpt-3.5-turbo",
-            "messages": text['messages']
-        }
-    
-    response = requests.post(url, headers=headers, json=data)
+    # Process text with OpenAI
+    response = requests.post(url, headers=headers, json=text)
     if response.status_code == 200:
-        return response.json()['choices'][0]['message']['content']
+        openai_result = response.json()['choices'][0]['message']['content']
+        return openai_result
+    elif response.status_code == 413:
+        st.warning("Request Entity Too Large. Reduce input size.")
+        return None
     else:
         st.error(f"OpenAI Error: HTTP {response.status_code}")
         st.error(f"OpenAI Error Response: {response.text}")
@@ -110,8 +93,21 @@ if st.button("Analyze Company LinkedIn Page"):
                 # Preprocess to remove text after the second occurrence of "*" after "updates"
                 preprocessed_text = trim_text_at_marker(jina_result)
                 
+                # Truncate text if needed
+                max_context_length = 16385
+                total_tokens = sum(len(message['content'].split()) for message in text['messages'])
+                if total_tokens > max_context_length:
+                    st.warning(f"Total tokens ({total_tokens}) exceed model's maximum context length ({max_context_length}). Truncating text.")
+                    
+                    # Example: Truncate text to fit within 16,000 tokens
+                    truncated_text = ' '.join(text['messages'][1]['content'].split()[:16000])
+                    
+                    # Modify the original text input
+                    text['messages'][1]['content'] = truncated_text
+                
                 # Construct text input for OpenAI
                 result_input = {
+                    "model": "gpt-3.5-turbo",
                     "messages": [
                         {"role": "system", "content": "Analyze the following content:"},
                         {"role": "user", "content": preprocessed_text}
@@ -131,6 +127,7 @@ if st.button("Analyze Company LinkedIn Page"):
             st.error("No results found or failed to fetch results from Serper.")
     else:
         st.error("Please provide the company name, Serper API key, and OpenAI API key.")
+
 
 
 
