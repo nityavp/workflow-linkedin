@@ -20,9 +20,13 @@ def serper_search(query, api_key):
 # Function to analyze a URL with Jina
 def analyze_with_jina(url):
     api_url = f"https://r.jina.ai/{url}"
-    response = requests.get(api_url)
+    headers = {
+        'X-With-Links-Summary': 'true',
+        'Accept': 'application/json'
+    }
+    response = requests.get(api_url, headers=headers)
     if response.status_code == 200:
-        return response.text  # Return raw text from the response
+        return response.json()
     else:
         st.error(f"Jina Error: HTTP {response.status_code}")
         return None
@@ -70,10 +74,10 @@ if st.button("Analyze Company LinkedIn Page"):
             jina_result = analyze_with_jina(first_url)
             if jina_result:
                 st.write("Jina Analysis Results:")
-                st.text(jina_result)
+                st.json(jina_result)  # Display Jina results as JSON
                 
                 # Process Jina results with OpenAI
-                openai_result = process_with_openai(jina_result, openai_api_key)
+                openai_result = process_with_openai(json.dumps(jina_result), openai_api_key)
                 if openai_result:
                     st.write("OpenAI Processed Results:")
                     st.text(openai_result)
