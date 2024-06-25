@@ -84,7 +84,6 @@ if st.button("Analyze Company LinkedIn Page"):
                 # Preprocess to remove text after a specific line
                 preprocessed_text = trim_text_at_marker(jina_result)
                 result_input ="This is my competitor's LinkedIn profile content, tell me in bullet points after analyzing what all can I learn from it"+ preprocessed_text
-                st.write( result_input)
                 final_result_input=result_input[:16000]
                 # Process preprocessed text with OpenAI
                 openai_result = process_with_openai(final_result_input, openai_api_key)
