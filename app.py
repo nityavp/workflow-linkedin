@@ -38,27 +38,6 @@ def trim_text_at_marker(text, marker="Join now to see what you are missing"):
         return text[:index]  # Return text before the marker
     return text  # Return original text if the marker is not found
 
-# Function to process text with OpenAI
-def process_with_openai(text, openai_api_key):
-    url = "https://api.openai.com/v1/chat/completions"
-    headers = {
-        'Content-Type': 'application/json',
-        'Authorization': f'Bearer {openai_api_key}'
-    }
-    data = {
-        "model": "gpt-3.5-turbo",
-        "messages": [
-            {"role": "system", "content": "Analyze the following content:"},
-            {"role": "user", "content": text}
-        ]
-    }
-    response = requests.post(url, headers=headers, json=data)
-    if response.status_code == 200:
-        return response.json()['choices'][0]['message']['content']
-    else:
-        st.error(f"OpenAI Error: HTTP {response.status_code}")
-        return None
-
 # Streamlit app setup
 st.title("Advanced Company Analysis with LinkedIn, Jina, and OpenAI")
 
@@ -96,6 +75,7 @@ if st.button("Analyze Company LinkedIn Page"):
             st.error("No results found or failed to fetch results from Serper.")
     else:
         st.error("Please provide the company name, Serper API key, and OpenAI API key.")
+
 
 
 
