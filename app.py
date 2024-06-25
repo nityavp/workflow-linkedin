@@ -29,30 +29,38 @@ def analyze_with_jina(url):
     if response.status_code == 200:
         jina_results = response.json()
         
-        # Remove links from Jina results
-        cleaned_results = remove_links_from_jina_response(jina_results)
+        # Remove specific URLs from Jina results
+        cleaned_results = remove_specific_urls_from_jina_response(jina_results)
         
         return cleaned_results
     else:
         st.error(f"Jina Error: HTTP {response.status_code}")
         return None
 
-# Function to remove links from content fields in Jina AI response
-def remove_links_from_jina_response(jina_results):
+# Function to remove specific URLs from Jina AI response
+def remove_specific_urls_from_jina_response(jina_results):
     try:
-        # Regular expression to identify links in text
-        link_pattern = r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+'
+        # List of URLs to remove
+        urls_to_remove = [
+            "https://in.linkedin.com/in/amit-sunderiyal-b486766?trk=org-employees",
+            "https://www.linkedin.com/signup?session_redirect=https%3A%2F%2Fwww%2Elinkedin%2Ecom%2Fsearch%2Fresults%2Fpeople%2F%3FfacetCurrentCompany%3D%255B74912%255D&trk=public_biz_employees-join",
+            "https://in.linkedin.com/company/force-motors?trk=organization_guest_main-feed-card_feed-actor-name",
+            "https://www.linkedin.com/uas/login?fromSignIn=true&session_redirect=https%3A%2F%2Fin.linkedin.com%2Fcompany%2Fforce-motors&trk=organization_guest_main-feed-card_ellipsis-menu-semaphore-sign-in-redirect&guestReportContentType=POST&_f=guest-reporting"
+        ]
+        
+        # Regular expression pattern to match URLs
+        url_pattern = r'https?://(?:[-\w.]|(?:%[\da-fA-F]{2}))+'
         
         # Check if 'data' key exists in the response
         if 'data' in jina_results:
-            # Iterate through 'data' fields to remove links
+            # Iterate through 'data' fields to remove specific URLs
             for key, value in jina_results['data'].items():
                 if isinstance(value, str):
-                    # Remove links from string fields
-                    jina_results['data'][key] = re.sub(link_pattern, '', value)
+                    # Remove specific URLs from string fields
+                    jina_results['data'][key] = re.sub("|".join(map(re.escape, urls_to_remove)), '', value)
                 elif isinstance(value, list):
-                    # Remove links from list of strings
-                    jina_results['data'][key] = [re.sub(link_pattern, '', item) if isinstance(item, str) else item for item in value]
+                    # Remove specific URLs from list of strings
+                    jina_results['data'][key] = [re.sub("|".join(map(re.escape, urls_to_remove)), '', item) if isinstance(item, str) else item for item in value]
         
         return jina_results
     except KeyError as e:
@@ -131,5 +139,6 @@ def extract_text_from_jina_results(jina_results):
     except KeyError as e:
         st.error(f"KeyError: {e}")
     return text.strip()
+
 
 
