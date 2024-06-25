@@ -17,7 +17,7 @@ def serper_search(query, api_key):
         st.error(f"Error: {response.status_code}")
         return None
 
-# Function to analyze a URL with Jina
+# Function to analyze a URL with Jina and remove text after "Join now to see what you are missing"
 def analyze_with_jina(url):
     api_url = f"https://r.jina.ai/{url}"
     headers = {
@@ -25,7 +25,9 @@ def analyze_with_jina(url):
     }
     response = requests.get(api_url, headers=headers)
     if response.status_code == 200:
-        return response.text  # Return raw text from the response
+        # Remove text after "Join now to see what you are missing"
+        jina_text = response.text.split("Join now to see what you are missing")[0]
+        return jina_text.strip()
     else:
         st.error(f"Jina Error: HTTP {response.status_code}")
         return None
@@ -92,7 +94,6 @@ if st.button("Analyze Company LinkedIn Page"):
             st.error("No results found or failed to fetch results.")
     else:
         st.error("Please provide the company name, Serper API key, and OpenAI API key.")
-
 
 
 
