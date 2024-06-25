@@ -1,7 +1,6 @@
 import streamlit as st
 import requests
 import json
-import re
 
 # Function to make search request to Serper API
 def serper_search(query, api_key):
@@ -18,7 +17,7 @@ def serper_search(query, api_key):
         st.error(f"Error from Serper API: {response.status_code}")
         return None
 
-# Function to analyze a URL with Jina
+# Function to analyze a URL with Jina and convert JSON to text
 def analyze_with_jina(url):
     api_url = f"https://r.jina.ai/{url}"
     headers = {
@@ -26,7 +25,17 @@ def analyze_with_jina(url):
     }
     response = requests.get(api_url, headers=headers)
     if response.status_code == 200:
-        return response.text  # Return raw text from the response
+        try:
+            # Parse JSON response
+            json_data = response.json()
+            
+            # Extract text content (replace with actual key depending on JSON structure)
+            text = json_data.get('content', '')  # Example: Replace with actual JSON key for content
+            
+            return text
+        except json.JSONDecodeError:
+            st.error("Failed to parse Jina response JSON.")
+            return None
     else:
         st.error(f"Jina Error: HTTP {response.status_code}")
         return None
@@ -78,13 +87,20 @@ if st.button("Analyze Company LinkedIn Page"):
             first_url = search_results['organic'][0]['link']
             st.write("First LinkedIn URL:", first_url)
             
-            # Analyze the URL with Jina
+            # Analyze the URL with Jina and convert JSON response to text
             jina_result = analyze_with_jina(first_url)
             if jina_result:
                 # Preprocess to remove text after a specific line
                 preprocessed_text = trim_text_at_marker(jina_result)
-                result_input ="This is my competitor's LinkedIn profile content, tell me in bullet points after analyzing what all can I learn from it"+ preprocessed_text
+                
+                # Constructing the input for OpenAI
+                prompt = (
+                    "This is my competitor's LinkedIn profile content. "
+                    "Tell me in bullet points after analyzing what all can I learn from it:\n\n"
+                )
+                result_input = prompt + preprocessed_text
                 st.write( result_input)
+                
                 # Process preprocessed text with OpenAI
                 openai_result = process_with_openai(result_input, openai_api_key)
                 if openai_result:
