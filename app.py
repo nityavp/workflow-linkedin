@@ -1,7 +1,6 @@
 import streamlit as st
 import requests
 import json
-import re
 
 # Function to make search request to Serper API
 def serper_search(query, api_key):
@@ -31,12 +30,22 @@ def analyze_with_jina(url):
         st.error(f"Jina Error: HTTP {response.status_code}")
         return None
 
-# Function to preprocess text: remove all after a certain line
-def trim_text_at_marker(text, marker="*   some text *"):
+# Function to preprocess text: remove all after the second occurrence of "*" after "updates"
+def trim_text_at_marker(text):
     lines = text.splitlines()
+    count_updates = 0
+    count_marker = 0
     for i, line in enumerate(lines):
-        if marker in line:
-            return "\n".join(lines[:i+1])  # Return text including the marker line and everything before
+        if "updates" in line:
+            count_updates += 1
+            if count_updates == 2:
+                for j, char in enumerate(line):
+                    if char == "*":
+                        count_marker += 1
+                        if count_marker == 2:
+                            return "\n".join(lines[:i+1])  # Return text including the second marker line and everything before
+                        else:
+                            continue
     return text
 
 # Function to process text with OpenAI
@@ -58,6 +67,7 @@ def process_with_openai(text, openai_api_key):
         return response.json()['choices'][0]['message']['content']
     else:
         st.error(f"OpenAI Error: HTTP {response.status_code}")
+        st.error(f"OpenAI Error Response: {response.text}")
         return None
 
 # Streamlit app setup
@@ -81,10 +91,16 @@ if st.button("Analyze Company LinkedIn Page"):
             # Analyze the URL with Jina
             jina_result = analyze_with_jina(first_url)
             if jina_result:
-                # Preprocess to remove text after a specific line
+                # Preprocess to remove text after the second occurrence of "*" after "updates"
                 preprocessed_text = trim_text_at_marker(jina_result)
-                result_input ="This is my competitor's LinkedIn profile content, tell me in bullet points after analyzing what all can I learn from it"+ preprocessed_text
-                st.write( result_input)
+                
+                # Construct text input for OpenAI
+                result_input = (
+                    "This is my competitor's LinkedIn profile content. "
+                    "Tell me, in bullet points after analyzing, what all can I learn from it:\n\n"
+                    f"{preprocessed_text}"
+                )
+
                 # Process preprocessed text with OpenAI
                 openai_result = process_with_openai(result_input, openai_api_key)
                 if openai_result:
