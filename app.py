@@ -1,6 +1,7 @@
 import streamlit as st
 import requests
 import json
+import re
 
 # Function to make search request to Serper API
 def serper_search(query, api_key):
@@ -14,18 +15,29 @@ def serper_search(query, api_key):
     if response.status_code == 200:
         return response.json()
     else:
-        st.error(f"Error: {response.status_code}")
+        st.error(f"Error from Serper API: {response.status_code}")
         return None
 
 # Function to analyze a URL with Jina
 def analyze_with_jina(url):
     api_url = f"https://r.jina.ai/{url}"
-    response = requests.get(api_url)
+    headers = {
+        "X-With-Links-Summary": "true"
+    }
+    response = requests.get(api_url, headers=headers)
     if response.status_code == 200:
         return response.text  # Return raw text from the response
     else:
         st.error(f"Jina Error: HTTP {response.status_code}")
         return None
+
+# Function to preprocess text: remove all after a certain line
+def trim_text_at_marker(text, marker="*   some text *"):
+    lines = text.splitlines()
+    for i, line in enumerate(lines):
+        if marker in line:
+            return "\n".join(lines[:i+1])  # Return text including the marker line and everything before
+    return text
 
 # Function to process text with OpenAI
 def process_with_openai(text, openai_api_key):
@@ -69,17 +81,21 @@ if st.button("Analyze Company LinkedIn Page"):
             # Analyze the URL with Jina
             jina_result = analyze_with_jina(first_url)
             if jina_result:
-                st.write("Jina Analysis Results:")
-                st.text(jina_result)
+                # Preprocess to remove text after a specific line
+                preprocessed_text = trim_text_at_marker(jina_result)
+                result_input ="This is my competitor's LinkedIn profile content, tell me in bullet points after analyzing what all can I learn from it"+ preprocessed_text
                 
-                # **Process Jina results with OpenAI**
-                # In this section, process `jina_result` with OpenAI
-                openai_result = process_with_openai(jina_result, openai_api_key)
+                # Process preprocessed text with OpenAI
+                openai_result = process_with_openai(preprocessed_text, openai_api_key)
                 if openai_result:
                     st.write("OpenAI Processed Results:")
                     st.text(openai_result)
+                else:
+                    st.write("Failed to process text with OpenAI due to API error.")
+            else:
+                st.write("Failed to get a valid response from Jina.")
         else:
-            st.error("No results found or failed to fetch results.")
+            st.error("No results found or failed to fetch results from Serper.")
     else:
         st.error("Please provide the company name, Serper API key, and OpenAI API key.")
 
