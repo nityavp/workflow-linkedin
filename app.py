@@ -48,7 +48,7 @@ def trim_text_at_marker(text):
                             continue
     return text
 
-# Function to process text with OpenAI
+# Function to process text with OpenAI, reducing input length
 def process_with_openai(text, openai_api_key):
     url = "https://api.openai.com/v1/chat/completions"
     headers = {
@@ -56,23 +56,31 @@ def process_with_openai(text, openai_api_key):
         'Authorization': f'Bearer {openai_api_key}'
     }
     
-    # Check if the total tokens exceed the model's context length
+    # Reduce input length by summarizing or trimming text
     max_context_length = 16385
     total_tokens = sum(len(message['content'].split()) for message in text['messages'])
     if total_tokens > max_context_length:
-        st.error(f"Total tokens ({total_tokens}) exceed model's maximum context length ({max_context_length})")
-        return None
+        st.warning(f"Total tokens ({total_tokens}) exceed model's maximum context length ({max_context_length}). Reducing input length.")
+        
+        # Example: Truncate text to first 16,000 tokens
+        truncated_text = ' '.join(text['messages'][1]['content'].split()[:16000])
+        
+        data = {
+            "model": "gpt-3.5-turbo",
+            "messages": [
+                {"role": "system", "content": "Analyze the following content:"},
+                {"role": "user", "content": truncated_text}
+            ]
+        }
+    else:
+        data = {
+            "model": "gpt-3.5-turbo",
+            "messages": text['messages']
+        }
     
-    data = {
-        "model": "gpt-3.5-turbo",
-        "messages": text['messages']
-    }
     response = requests.post(url, headers=headers, json=data)
     if response.status_code == 200:
         return response.json()['choices'][0]['message']['content']
-    elif response.status_code == 400 and 'context_length_exceeded' in response.json().get('error', {}).get('code', ''):
-        st.error("Context length exceeded. Please reduce the length of messages.")
-        return None
     else:
         st.error(f"OpenAI Error: HTTP {response.status_code}")
         st.error(f"OpenAI Error Response: {response.text}")
@@ -104,7 +112,6 @@ if st.button("Analyze Company LinkedIn Page"):
                 
                 # Construct text input for OpenAI
                 result_input = {
-                    "model": "gpt-3.5-turbo",
                     "messages": [
                         {"role": "system", "content": "Analyze the following content:"},
                         {"role": "user", "content": preprocessed_text}
@@ -124,6 +131,7 @@ if st.button("Analyze Company LinkedIn Page"):
             st.error("No results found or failed to fetch results from Serper.")
     else:
         st.error("Please provide the company name, Serper API key, and OpenAI API key.")
+
 
 
 
